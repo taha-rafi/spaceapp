@@ -1,0 +1,59 @@
+name: Contributor development stack
+
+on:
+  push:
+    paths:
+      - ".github/workflows/dev-stack.yml"
+      - "scripts/dev-stack*"
+      - "scripts/tests/dev-stack*"
+      - "apps/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".nvmrc"
+      - "tsconfig.base.json"
+      - "Dockerfile"
+  pull_request:
+    paths:
+      - ".github/workflows/dev-stack.yml"
+      - "scripts/dev-stack*"
+      - "scripts/tests/dev-stack*"
+      - "apps/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".nvmrc"
+      - "tsconfig.base.json"
+      - "Dockerfile"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dev-stack-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contributor-dev-stack:
+    name: Source stack owner and OpenCode integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node --test scripts/tests/dev-stack-state.test.mjs scripts/tests/dev-stack-config.test.mjs
+      - run: node scripts/dev-stack-integration.mjs
+      - run: node scripts/dev-stack-integration.mjs --worker-failure
+      - run: node scripts/dev-stack-integration.mjs --rebuild
+      - name: Remove isolated development resources
+        if: always()
+        run: npm run dev:stack -- reset

@@ -1,4 +1,4 @@
-import { join, resolve, sep } from "node:path";
+import { isAbsolute, join, resolve, sep } from "node:path";
 import { findCliRuntimeDescriptor } from "./cli-runtime-descriptors.js";
 
 export const codexDirectParityRuntimeId = "cli:codex";
@@ -17,24 +17,27 @@ export const qwenDirectParityRuntimeId = "cli:qwen";
 export const qwenDirectParityCommand = "qwen-vscode-parity";
 export const deepseekDirectParityRuntimeId = "cli:deepseek";
 export const deepseekDirectParityCommand = "deepseek-vscode-parity";
-export const codexDirectParityCwd = "/etc";
-export const codexDirectParityHome = "/var/lib/spaceapp-user";
-export const codexDirectParityCodexHome = "/var/lib/spaceapp-user/.codex";
-export const codexDirectParityTmp = "/var/lib/spaceapp-user/.codex/tmp";
-export const claudeDirectParityRoot = "/var/lib/spaceapp-user/.codex/space-claude";
+export const codexDirectParityCwd = process.env.SPACE_CLI_DEFAULT_CWD ?? "/etc";
+export const codexDirectParityHome = process.env.SPACE_CLI_HOME ?? "/var/lib/spaceapp-user";
+if (![codexDirectParityCwd, codexDirectParityHome].every(isAbsolute)) {
+  throw new Error("SPACE_CLI_HOME and SPACE_CLI_DEFAULT_CWD must be absolute paths.");
+}
+export const codexDirectParityCodexHome = `${codexDirectParityHome}/.codex`;
+export const codexDirectParityTmp = `${codexDirectParityHome}/.codex/tmp`;
+export const claudeDirectParityRoot = `${codexDirectParityHome}/.codex/space-claude`;
 export const claudeDirectParityTmp = `${claudeDirectParityRoot}/tmp`;
-export const opencodeDirectParityRoot = "/var/lib/spaceapp-user/.codex/space-opencode";
+export const opencodeDirectParityRoot = `${codexDirectParityHome}/.codex/space-opencode`;
 export const opencodeDirectParityTmp = `${opencodeDirectParityRoot}/tmp`;
-export const kimiDirectParityRoot = "/var/lib/spaceapp-user/.codex/space-kimi";
+export const kimiDirectParityRoot = `${codexDirectParityHome}/.codex/space-kimi`;
 export const kimiDirectParityTmp = `${kimiDirectParityRoot}/tmp`;
-export const grokDirectParityRoot = "/var/lib/spaceapp-user/.codex/space-grok";
+export const grokDirectParityRoot = `${codexDirectParityHome}/.codex/space-grok`;
 export const grokDirectParityTmp = `${grokDirectParityRoot}/tmp`;
-export const geminiDirectParityRoot = "/var/lib/spaceapp-user/.codex/space-gemini";
+export const geminiDirectParityRoot = `${codexDirectParityHome}/.codex/space-gemini`;
 export const geminiDirectParityTmp = `${geminiDirectParityRoot}/tmp`;
-export const qwenDirectParityRoot = "/var/lib/spaceapp-user/.codex/space-qwen";
+export const qwenDirectParityRoot = `${codexDirectParityHome}/.codex/space-qwen`;
 export const hermesDirectParityRuntimeId = "cli:hermes";
 export const hermesDirectParityCommand = "hermes-vscode-parity";
-export const hermesDirectParityRoot = "/var/lib/spaceapp-user/.hermes";
+export const hermesDirectParityRoot = `${codexDirectParityHome}/.hermes`;
 export const hermesDirectParityTmp = `${hermesDirectParityRoot}/tmp`;
 export const qwenDirectParityTmp = `${qwenDirectParityRoot}/tmp`;
 

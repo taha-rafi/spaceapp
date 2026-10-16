@@ -548,7 +548,7 @@ describe("browser runtime v2 control leases", () => {
       status: "READY",
       isActive: true
     });
-    const manager = createBrowserSessionManager({ store, config: getApiConfig({ SPACE_BROWSER_SESSIONS_ENABLED: "true" }) });
+    const manager = createBrowserSessionManager({ store, config: getApiConfig({ SPACE_BROWSER_SESSIONS_ENABLED: "true", SPACE_BROWSER_SESSIONS_CHROME_PATH: process.execPath }) });
 
     const acquired = await manager.acquireControl!(pane, {
       holderType: "OPERATOR",

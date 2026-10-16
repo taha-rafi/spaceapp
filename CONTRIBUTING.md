@@ -27,41 +27,110 @@ packaging requires its normal toolchain and separate platform acceptance.
 Dependency installation may use the network; the smoke command below does not
 need a provider account, API key, Docker, PostgreSQL or Temporal.
 
-## Contributor dev stack (experimental)
+## Run the full app from source
 
-The `dev:stack` launcher is being developed in [issue #65](https://github.com/oll4com/spaceapp/issues/65).
-It is **not yet a full supported from-source installation**: the OpenCode CLI,
-worker supervision, cross-platform runs and end-to-end owner setup tests still
-need validation. Do not use it with production data.
-
-Prerequisites: Node 22, npm, Docker with Compose v2, and a clean repository
-checkout. On Windows 11, run under WSL2 with Docker integration available.
+Use Node from `.nvmrc` (22.x), npm, and Docker Engine with Compose v2 on
+Linux. Native dependencies may need Python 3, Make and a C++ compiler
+(`python3 make g++` on Debian/Ubuntu). The complete test suite also uses the
+`sqlite3` CLI (`apt install sqlite3`, or `brew install sqlite` on macOS). Docker must be running and accessible to
+your user. No provider credentials are needed to open OpenCode's terminal UI;
+using a model may require provider access. Desktop packaging is separate.
 
 ```sh
 ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci
 npm run dev:stack
-# in a separate terminal when stopping the services:
-npm run dev:stack -- down
-# destructive: removes only contributor-compose volumes and .dev-stack state:
-npm run dev:stack -- reset
 ```
 
-By default API and Vite use 127.0.0.1 ports 4912 and 4913, while the
-development PostgreSQL and Temporal ports are 55432 and 57233. Override them
-with `SPACE_DEV_API_PORT`, `SPACE_DEV_WEB_PORT`,
-`SPACE_DEV_DB_PORT` and `SPACE_DEV_TEMPORAL_PORT`. All four ports
-must be distinct and are restricted to localhost.
+The launcher reads PostgreSQL/pgvector and Temporal image digests from the
+installer's Compose template. It starts those containers, installs the
+Dockerfile-pinned OpenCode CLI under `.dev-stack/opencode`, builds the source,
+runs migrations, and starts the CLI host, worker, API watcher and Vite. It waits
+for `/readyz` and the web page before printing the URL and owner setup token.
+Enter that token in the browser, register the owner, and sign in. Development
+login is explicitly disabled. Open Getting Started and add an OpenCode pane.
 
-Generated passwords and tokens are stored in the git-ignored `.dev-stack/`
-directory. **Reset destroys these local credentials and development database
-data.** The owner setup token is printed at startup and should not be pasted
-into issue comments or CI logs.
+All published ports bind to `127.0.0.1`:
 
-Troubleshooting: verify that Docker is running (`docker compose version`),
-all four local ports are free, and dependency installation completed.
-The development supervisor exits on source-process failure. Until the
-end-to-end acceptance suite is added, a running launcher is not evidence
-that the owner setup, OpenCode pane or workflow readiness works.
+| Service | Default port | Override |
+| --- | --- | --- |
+| API | 4912 | `SPACE_DEV_API_PORT` |
+| Vite | 4913 | `SPACE_DEV_WEB_PORT` |
+| PostgreSQL | 55432 | `SPACE_DEV_DB_PORT` |
+| Temporal | 57233 | `SPACE_DEV_TEMPORAL_PORT` |
+
+Ports must be distinct integers from 1024 through 65535 and free before startup.
+The checkout has its own Compose project derived from its absolute path and its
+own git-ignored `.dev-stack/`. Credentials are generated once with mode 0600,
+and state directories use mode 0700. Only the setup token is printed; do not
+paste it into issue comments or CI logs. The token expires after 15 minutes;
+restart the stack to renew its bootstrap window before the owner is claimed.
+Owner credentials and database state survive `down`.
+
+API source edits restart the API; frontend edits trigger Vite HMR. After changing
+workspace packages, rebuild and restart from a second terminal with one command:
+
+```sh
+npm run dev:stack -- rebuild
+```
+
+The original supervisor exits; the rebuild command becomes the new foreground
+supervisor. It retains the isolated database and credentials. For lifecycle
+commands, use the same checkout and port overrides:
+
+```sh
+npm run dev:stack -- down   # stop source process groups and Docker services
+npm run dev:stack -- reset  # also delete owned volumes and .dev-stack state
+```
+
+Ctrl+C stops source processes; use `down` to stop the retained containers too.
+An unexpected service exit is reported by name and stops the other source
+services with a nonzero exit status. Cleanup targets this checkout's process
+groups and Compose project; it does not search for or kill installed instances.
+Reset refuses unrecognized or symlinked state. Do not move a checkout while its
+stack is running, or delete its state directory manually.
+
+### Platform notes and troubleshooting
+
+- **Linux:** verify `docker version` and `docker compose version`. If a port is
+  busy, choose the corresponding override; do not stop an installed SpaceApp.
+- **macOS:** use Docker Desktop or Colima with a working Docker context and
+  Compose v2. Install the Xcode command-line tools for native npm modules.
+- **Windows 11:** use WSL2 with a Linux distribution, Node and npm installed
+  inside it, and Docker Desktop WSL integration (or a Docker daemon in WSL).
+  Clone into the Linux filesystem, such as `~/src/spaceapp`, rather than
+  `/mnt/c`, to preserve Unix permissions, sockets and watcher behavior.
+  Native Windows PowerShell is not supported by this Unix process supervisor.
+
+Check the first failing service output, Docker health status and disk space.
+Temporal initialization can take a minute on first boot. Internal Docker gRPC
+traffic is excluded from HTTP proxies. Dependency downloads still require the
+npm registry and the pinned Docker registries. If installation failed, rerun
+`npm ci` with the pinned Node version before starting again. A stale control
+socket after a killed supervisor requires investigation of that checkout's
+remaining processes before removing it; avoid broad `pkill` commands.
+
+The destructive integration check requires a fresh `.dev-stack` and runs real
+Docker services, owner setup, CLI session creation, terminal output, reloads and
+cleanup:
+
+```sh
+node scripts/dev-stack-integration.mjs
+node scripts/dev-stack-integration.mjs --worker-failure
+node scripts/dev-stack-integration.mjs --rebuild
+```
+
+Containers used as development machines need an init that reaps orphaned
+subprocesses. If PID 1 does not do that, run the supervisor and integration
+checks under `tini -s --` (or the Docker-provided `docker-init -s --`), for
+example `docker-init -s -- node scripts/dev-stack-integration.mjs`. The cleanup
+check requires the owned process tree and groups to disappear; dead zombie
+processes are not treated as a passing cleanup result. Normal desktop/VM hosts
+already provide init. This does not require running Docker services as root on
+the host.
+
+The Ubuntu CI job runs these checks without a TTY. Linux cloud validation does
+not establish a macOS or WSL2 run; attach actual terminal evidence from at least
+one of those platforms before submitting a solution to issue #65.
 
 ## First executed task, without a provider
 

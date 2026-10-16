@@ -1,7 +1,6 @@
-name: spaceapp-contributor-dev
 services:
   postgres:
-    image: pgvector/pgvector:0.8.3-pg17-trixie@sha256:3a3147ccd9a0aee952bb69e1acea1eb3cc7183544185b87a662f872cfa47ae3b
+    image: ${SPACE_DEV_POSTGRES_IMAGE:?launcher supplies canonical image}
     restart: unless-stopped
     environment:
       POSTGRES_DB: spaceapp
@@ -20,21 +19,26 @@ services:
       retries: 20
 
   temporal:
-    image: temporalio/auto-setup:1.29.1@sha256:5b3502a3b685f9eff1b925af90c57c9e3dbeccbef367cc28a2a9712c63379312
+    image: ${SPACE_DEV_TEMPORAL_IMAGE:?launcher supplies canonical image}
     restart: unless-stopped
     ports:
       - "127.0.0.1:${SPACE_DEV_TEMPORAL_PORT:-57233}:7233"
     environment:
+      # Keep internal gRPC traffic off inherited HTTP proxies.
+      NO_PROXY: "localhost,127.0.0.1,temporal,postgres,172.16.0.0/12,10.0.0.0/8,192.168.0.0/16"
+      no_proxy: "localhost,127.0.0.1,temporal,postgres,172.16.0.0/12,10.0.0.0/8,192.168.0.0/16"
+      DEFAULT_NAMESPACE: spaceapp-contributor
       DB: postgres12
       DB_PORT: 5432
       POSTGRES_SEEDS: postgres
       POSTGRES_USER: spaceapp
       DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/docker.yaml
+    user: "0:0"
     entrypoint: ["/bin/sh", "-ec"]
     command:
-      - export POSTGRES_PWD="$(cat /run/secrets/postgres-password)"; exec /etc/temporal/entrypoint.sh autosetup
+      - export POSTGRES_PWD="$$(cat /run/secrets/postgres-password)"; exec su temporal -s /bin/sh -c 'exec /etc/temporal/entrypoint.sh autosetup'
     healthcheck:
-      test: ["CMD-SHELL", "temporal operator cluster health --address temporal:7233 >/dev/null && temporal operator namespace describe --namespace default --address temporal:7233 >/dev/null"]
+      test: ["CMD-SHELL", "temporal operator cluster health --address temporal:7233 >/dev/null && temporal operator namespace describe --namespace spaceapp-contributor --address temporal:7233 >/dev/null"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -46,7 +50,8 @@ services:
 
 volumes:
   postgres-data:
-    name: spaceapp-contributor-dev-postgres-data
+    labels:
+      spaceapp.dev-stack: "true"
 
 secrets:
   postgres-password:

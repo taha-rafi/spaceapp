@@ -1,3 +1,4 @@
+import { isAbsolute } from "node:path";
 import type { AgentRuntimeAuthMode, AgentRuntimeAuthState, CliAdapterLimitation } from "@space/contracts";
 
 export type CliRuntimeKey =
@@ -59,7 +60,8 @@ export interface CliRuntimeDescriptor {
   loginBootstrapReason: string | null;
 }
 
-const proxmoxHome = "/var/lib/spaceapp-user";
+const proxmoxHome = process.env.SPACE_CLI_HOME ?? "/var/lib/spaceapp-user";
+if (!isAbsolute(proxmoxHome)) throw new Error("SPACE_CLI_HOME must be an absolute path.");
 const codexHome = `${proxmoxHome}/.codex`;
 
 const completionUnobserved: CliAdapterLimitation = {

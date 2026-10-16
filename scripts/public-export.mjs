@@ -128,6 +128,12 @@ const publicScripts = new Set([
   "scripts/tests/composition-root-size.test.mjs",
   "scripts/quality-known-limitations.mjs",
   "scripts/tests/quality-known-limitations.test.mjs",
+  "scripts/dev-stack.mjs",
+  "scripts/dev-stack-integration.mjs",
+  "scripts/dev-stack-state.mjs",
+  "scripts/dev-stack-services.yml",
+  "scripts/tests/dev-stack-state.test.mjs",
+  "scripts/tests/dev-stack-config.test.mjs",
   "scripts/contributor-smoke.mjs",
   "scripts/fixtures/offline-cli.mjs",
   "scripts/tests/contributor-smoke.test.mjs"

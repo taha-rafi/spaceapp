@@ -218,7 +218,7 @@ test("release is manual-only on main and publishes only approved sanitized artif
 });
 
 test("workflow actions use full commit SHA pins with version comments", async () => {
-  for (const name of ["ci.yml", "platform-matrix.yml", "containers.yml", "security.yml", "release.yml"]) {
+  for (const name of ["ci.yml", "dev-stack.yml", "platform-matrix.yml", "containers.yml", "security.yml", "release.yml"]) {
     const content = await workflow(name);
     assert.doesNotMatch(content, /pull_request_target:/);
     for (const reference of content.matchAll(/uses:\s+([^@\s]+)@([0-9a-f]{40})(?:\s+#\s+([^\s]+))?/g)) {
@@ -230,4 +230,16 @@ test("workflow actions use full commit SHA pins with version comments", async ()
     const pinnedCount = [...content.matchAll(/uses:\s+[^@\s]+@[0-9a-f]{40}\s+#\s+v?\d+\.\d+\.\d+/g)].length;
     assert.equal(pinnedCount, usesCount, `${name} must pin every action by full commit SHA`);
   }
+});
+
+
+test("source stack CI exercises owner setup, failure, rebuild and cleanup on Ubuntu", async () => {
+  const source = await workflow("dev-stack.yml");
+  assert.match(source, /runs-on: ubuntu-latest/);
+  assert.match(source, /push:/);
+  assert.match(source, /pull_request:/);
+  assert.match(source, /node-version-file: \.nvmrc/);
+  assert.match(source, /npm ci/);
+  for (const command of ["node scripts/dev-stack-integration.mjs", "node scripts/dev-stack-integration.mjs --worker-failure", "node scripts/dev-stack-integration.mjs --rebuild", "npm run dev:stack -- reset"]) assert.ok(source.includes(command));
+  assert.match(source, /if: always\(\)/);
 });
