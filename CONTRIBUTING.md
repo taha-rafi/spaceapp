@@ -27,6 +27,42 @@ packaging requires its normal toolchain and separate platform acceptance.
 Dependency installation may use the network; the smoke command below does not
 need a provider account, API key, Docker, PostgreSQL or Temporal.
 
+## Contributor dev stack (experimental)
+
+The `dev:stack` launcher is being developed in [issue #65](https://github.com/oll4com/spaceapp/issues/65).
+It is **not yet a full supported from-source installation**: the OpenCode CLI,
+worker supervision, cross-platform runs and end-to-end owner setup tests still
+need validation. Do not use it with production data.
+
+Prerequisites: Node 22, npm, Docker with Compose v2, and a clean repository
+checkout. On Windows 11, run under WSL2 with Docker integration available.
+
+```sh
+ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci
+npm run dev:stack
+# in a separate terminal when stopping the services:
+npm run dev:stack -- down
+# destructive: removes only contributor-compose volumes and .dev-stack state:
+npm run dev:stack -- reset
+```
+
+By default API and Vite use 127.0.0.1 ports 4912 and 4913, while the
+development PostgreSQL and Temporal ports are 55432 and 57233. Override them
+with `SPACE_DEV_API_PORT`, `SPACE_DEV_WEB_PORT`,
+`SPACE_DEV_DB_PORT` and `SPACE_DEV_TEMPORAL_PORT`. All four ports
+must be distinct and are restricted to localhost.
+
+Generated passwords and tokens are stored in the git-ignored `.dev-stack/`
+directory. **Reset destroys these local credentials and development database
+data.** The owner setup token is printed at startup and should not be pasted
+into issue comments or CI logs.
+
+Troubleshooting: verify that Docker is running (`docker compose version`),
+all four local ports are free, and dependency installation completed.
+The development supervisor exits on source-process failure. Until the
+end-to-end acceptance suite is added, a running launcher is not evidence
+that the owner setup, OpenCode pane or workflow readiness works.
+
 ## First executed task, without a provider
 
 ```sh
