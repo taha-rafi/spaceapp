@@ -106,7 +106,9 @@ async function main() {
   run('npm', ['run', 'db:migrate'], { env: { ...process.env, ...common } });
   // These workers depend on built internal workspace artifacts.
   run('npm', ['run', 'build'], { env: { ...process.env, ...common } });
-  child('npm', ['run', 'dev', '-w', '@space/api'], common);
+  // Do not call apps/api's dev script: it explicitly enables dev-login.
+  // Owner creation in this stack must use the one-time setup token.
+  child('node', ['node_modules/tsx/dist/cli.mjs', 'watch', 'apps/api/src/server.ts'], common);
   child('npm', ['run', 'dev', '-w', '@space/web'], common);
   child('npm', ['run', 'dev', '-w', '@space/worker'], common);
   child('node', ['packages/cli-host/dist/main.js'], common);
