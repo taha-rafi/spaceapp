@@ -5,7 +5,8 @@ import test from "node:test";
 import {
   composeCommand,
   renderRuntimeEnv,
-  renderWorkspaceCompose
+  renderWorkspaceCompose,
+  resolveContainerEngine
 } from "../src/index.mjs";
 import { inspectSystemResources } from "../src/index.mjs";
 
@@ -76,6 +77,19 @@ test("compose actions map to fixed commands and never invoke a shell", () => {
   );
   assert.equal(removeBrowser.args.includes("--volumes"), false);
   assert.throws(() => composeCommand("arbitrary", home), /unsupported/i);
+});
+
+test("compose commands support an explicit Podman engine without changing arguments", () => {
+  const docker = composeCommand("up", home, { engine: "docker" });
+  const podman = composeCommand("up", home, { engine: "podman" });
+
+  assert.equal(docker.command, "docker");
+  assert.equal(podman.command, "podman");
+  assert.deepEqual(podman.args, docker.args);
+  assert.equal(resolveContainerEngine(undefined), "docker");
+  assert.equal(resolveContainerEngine(undefined, "podman"), "podman");
+  assert.throws(() => resolveContainerEngine("containerd"), /docker or podman/i);
+  assert.throws(() => composeCommand("up", home, { engine: "containerd" }), /docker or podman/i);
 });
 
 test("compose project identity is stable for the same installation root", () => {
