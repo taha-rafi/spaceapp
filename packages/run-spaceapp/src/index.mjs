@@ -173,6 +173,14 @@ export function resolveInstallAccessMode(requestedMode, existingMode = "isolated
   throw new Error("Install access mode must be isolated or host-root.");
 }
 
+export function resolveContainerEngine(requestedEngine, existingEngine = "docker") {
+  const engine = requestedEngine ?? existingEngine;
+  if (engine === "docker" || engine === "podman") {
+    return engine;
+  }
+  throw new Error("Container engine must be docker or podman.");
+}
+
 export function versionTuple(version) {
   if (typeof version !== "string") {
     return null;
@@ -621,6 +629,7 @@ export function composeCommand(action, root, options = {}) {
   validateHome(root);
   const stateRoot = options.stateRoot ?? root;
   validateHome(stateRoot);
+  const engine = resolveContainerEngine(options.engine);
   const profile = options.profile ?? "standard";
   const settings = profileRuntimeSettings(profile);
   const base = [
@@ -723,7 +732,7 @@ export function composeCommand(action, root, options = {}) {
   if (!selected) {
     throw new Error(`Unsupported Compose action "${action}".`);
   }
-  return { command: "docker", args: [...base, ...selected] };
+  return { command: engine, args: [...base, ...selected] };
 }
 
 export function composeProjectName(root) {
