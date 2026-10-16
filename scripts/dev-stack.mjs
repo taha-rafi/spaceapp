@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initializeDevStackState, readDevStackSetupToken, resetDevStackState, devStackPaths } from './dev-stack-state.mjs';
@@ -46,12 +46,15 @@ function child(command, argv, environment) {
 }
 let stopping = false;
 const children = new Set();
+let resolveShutdown;
+const shutdown = new Promise(resolve => { resolveShutdown = resolve; });
 function stop() {
   if (stopping) return;
   stopping = true;
   for (const handle of children) if (!handle.killed) handle.kill('SIGTERM');
   // Compose data is deliberately retained by 'down', unlike 'reset'.
   process.exitCode = 1;
+  resolveShutdown();
 }
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, stop);
 
@@ -110,5 +113,7 @@ async function main() {
   console.log(`SpaceApp source UI: http://127.0.0.1:${webPort}`);
   console.log(`Owner setup token: ${setupToken}`);
   console.log('Use Ctrl+C to stop source processes. Use npm run dev:stack -- down to stop database services.');
+  // Remain alive to supervise all child processes; otherwise Ctrl+C cannot stop them.
+  await shutdown;
 }
 await main().catch(error => { console.error(error); process.exitCode = 1; });
