@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { Readable, Writable } from "node:stream";
 import test from "node:test";
 import {
+  containerEngineIsReady,
+  detectContainerEngines,
   downloadFile,
   ensureDockerAvailable,
   prepareDockerCliPath,
@@ -19,6 +21,24 @@ function capture() {
   });
   return { stream, value: () => value };
 }
+
+test("container engine readiness probes Docker and Podman with fixed commands", async () => {
+  const calls = [];
+  const execute = async (spec) => {
+    calls.push(spec);
+    return spec.command === "podman" ? 0 : 1;
+  };
+
+  assert.equal(await containerEngineIsReady("podman", execute), true);
+  assert.equal(await containerEngineIsReady("docker", execute), false);
+  await assert.rejects(
+    () => containerEngineIsReady("containerd", execute),
+    /docker or podman/i
+  );
+  assert.deepEqual(await detectContainerEngines(execute), { docker: false, podman: true });
+  assert.ok(calls.some((spec) => spec.command === "podman" && spec.args.join(" ") === "compose version"));
+  assert.ok(calls.some((spec) => spec.command === "podman" && spec.args[0] === "info"));
+});
 
 test("Windows PowerShell operations use fixed scripts and reject arbitrary commands", () => {
   const operations = [
