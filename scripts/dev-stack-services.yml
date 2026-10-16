@@ -1,0 +1,46 @@
+name: spaceapp-contributor-dev
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.3-pg17-trixie@sha256:3a3147ccd9a0aee952bb69e1acea1eb3cc7183544185b87a662f872cfa47ae3b
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: spaceapp
+      POSTGRES_USER: spaceapp
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
+    secrets:
+      - postgres-password
+    ports:
+      - "127.0.0.1:${SPACE_DEV_DB_PORT:-55432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spaceapp -d spaceapp"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  temporal:
+    image: temporalio/auto-setup:1.29.1@sha256:5b3502a3
+    # The canonical digest and dependent Temporal DB configuration are still being audited.
+    profiles: ["temporal-pending"]
+    ports:
+      - "127.0.0.1:${SPACE_DEV_TEMPORAL_PORT:-57233}:7233"
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_SEEDS: postgres
+      POSTGRES_USER: spaceapp
+      POSTGRES_PWD_FILE: /run/secrets/postgres-password
+    secrets:
+      - postgres-password
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+    name: spaceapp-contributor-dev-postgres-data
+
+secrets:
+  postgres-password:
+    file: ${SPACE_DEV_SECRETS_DIR}/postgres-password
