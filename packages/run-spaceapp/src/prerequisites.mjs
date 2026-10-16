@@ -654,16 +654,31 @@ async function dockerCliAndComposeAreAvailable(execute) {
 }
 
 async function dockerIsReady(execute) {
+  return containerEngineIsReady("docker", execute);
+}
+
+export async function containerEngineIsReady(engine, execute) {
+  if (engine !== "docker" && engine !== "podman") {
+    throw new Error("Container engine must be docker or podman.");
+  }
   for (const spec of [
-    { command: "docker", args: ["--version"] },
-    { command: "docker", args: ["compose", "version"] },
-    { command: "docker", args: ["info"] }
+    { command: engine, args: ["--version"] },
+    { command: engine, args: ["compose", "version"] },
+    { command: engine, args: ["info"] }
   ]) {
     if (await execute(spec, { stdout: null, stderr: null }) !== 0) {
       return false;
     }
   }
   return true;
+}
+
+export async function detectContainerEngines(execute) {
+  const [docker, podman] = await Promise.all([
+    containerEngineIsReady("docker", execute),
+    containerEngineIsReady("podman", execute)
+  ]);
+  return { docker, podman };
 }
 
 async function installLinuxDockerEngine({
