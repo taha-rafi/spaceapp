@@ -20,9 +20,8 @@ services:
       retries: 20
 
   temporal:
-    image: temporalio/auto-setup:1.29.1@sha256:5b3502a3
-    # The canonical digest and dependent Temporal DB configuration are still being audited.
-    profiles: ["temporal-pending"]
+    image: temporalio/auto-setup:1.29.1@sha256:5b3502a3b685f9eff1b925af90c57c9e3dbeccbef367cc28a2a9712c63379312
+    restart: unless-stopped
     ports:
       - "127.0.0.1:${SPACE_DEV_TEMPORAL_PORT:-57233}:7233"
     environment:
@@ -30,7 +29,15 @@ services:
       DB_PORT: 5432
       POSTGRES_SEEDS: postgres
       POSTGRES_USER: spaceapp
-      POSTGRES_PWD_FILE: /run/secrets/postgres-password
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/docker.yaml
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - export POSTGRES_PWD="$(cat /run/secrets/postgres-password)"; exec /etc/temporal/entrypoint.sh autosetup
+    healthcheck:
+      test: ["CMD-SHELL", "temporal operator cluster health --address temporal:7233 >/dev/null && temporal operator namespace describe --namespace default --address temporal:7233 >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
     secrets:
       - postgres-password
     depends_on:
